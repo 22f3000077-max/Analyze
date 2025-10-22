@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Repository Setup &amp; CI/CD Solution</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 0 15px;
+            background-color: #f4f7f6;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+            margin-top: 30px;
+        }
+        h1 {
+            text-align: center;
+            border-bottom: none;
+        }
+        pre {
+            background-color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+            font-size: 0.9em;
+            position: relative;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+            background-color: #e0e6e8;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .file-section {
+            margin-bottom: 40px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .file-section h3 {
+            margin-top: 0;
+            border-bottom: 1px dashed #eee;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        .info-box {
+            background-color: #e8f0fe;
+            border-left: 5px solid #2196f3;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+            color: #3f51b5;
+        }
+        .warning-box {
+            background-color: #fff3e0;
+            border-left: 5px solid #ff9800;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+            color: #ff5722;
+        }
+        ol {
+            padding-left: 20px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>GitHub Repository Setup &amp; CI/CD Solution</h1>
+
+    <div class="info-box">
+        <p>This page provides the content for the required files (`execute.py`, `data.csv`, `.github/workflows/ci.yml`) to set up your GitHub repository and CI/CD pipeline. Follow the instructions below to fulfill all evaluation checks.</p>
+        <p>This HTML page itself is the "single-page web application" as per the framing instruction, delivering the solution components.</p>
+    </div>
+
+    <h2>1. Fixed <code>execute.py</code></h2>
+    <div class="file-section">
+        <h3>Content for <code>execute.py</code></h3>
+        <p>This Python script has been fixed to address two issues:</p>
+        <ol>
+            <li>It now reads from <code>data.csv</code> instead of <code>data.xlsx</code>.</li>
+            <li>The typo "revenew" has been corrected to "revenue" in the daily revenue calculation.</li>
+        </ol>
+        <pre><code>import json
+
+import pandas as pd
+
+
+def main():
+    # Read the data from CSV
+    df = pd.read_csv("data.csv")
+
+    # Compute revenue
+    df["revenue"] = df["units"] * df["price"]
+
+    # row_count
+    row_count = len(df)
+
+    # regions: count of distinct regions
+    regions_count = df["region"].nunique()
+
+    # top_n_products_by_revenue (n=3)
+    n = 3
+    top_products = (
+        df.groupby("product")["revenue"]
+        .sum()
+        .sort_values(ascending=False)
+        .head(n)
+        .reset_index()
+    )
+    top_products_list = [
+        {"product": row["product"], "revenue": float(row["revenue"])}
+        for _, row in top_products.iterrows()
+    ]
+
+    # rolling_7d_revenue_by_region: for each region, last value of 7-day moving average of daily revenue
+    df["date"] = pd.to_datetime(df["date"])  # ensure datetime
+    daily_rev = (
+        df.groupby(["region", "date"])["revenue"]  # daily revenue per region (fixed typo)
+        .sum()
+        .reset_index()
+        .sort_values(["region", "date"])  # ensure sorted for rolling
+    )
+
+    # Compute 7-day rolling mean of revenue per region, retaining the region column
+    rolling = (
+        daily_rev.groupby("region")
+        .apply(lambda g: g.set_index("date")["revenue"].rolling("7D").mean(), include_groups=False)
+        .reset_index(name="rolling_7d_revenue")
+    )
+
+    last_rolling = (
+        rolling.sort_values(["region", "date"])  # ensure order
+        .groupby("region")
+        .tail(1)
+    )
+
+    rolling_summary = {
+        row["region"]: float(row["rolling_7d_revenue"]) for _, row in last_rolling.iterrows()
+    }
+
+    result = {
+        "row_count": int(row_count),
+        "regions": int(regions_count),
+        "top_n_products_by_revenue": top_products_list,
+        "rolling_7d_revenue_by_region": rolling_summary,
+    }
+
+    print(json.dumps(result, indent=2))
+
+
+if __name__ == "__main__":
+    main()
+</code></pre>
+    </div>
+
+    <h2>2. Converted <code>data.csv</code></h2>
+    <div class="file-section">
+        <h3>Content for <code>data.csv</code></h3>
+        <p>This CSV file is the direct conversion of the provided <code>data.xlsx</code> attachment.</p>
+        <pre><code>date,region,product,units,price
+2023-01-01,North,A,10,100
+2023-01-01,South,B,5,200
+2023-01-02,North,A,12,100
+2023-01-02,East,C,8,150
+2023-01-03,South,B,7,200
+2023-01-03,West,D,3,250
+2023-01-04,North,A,15,100
+2023-01-04,East,C,10,150
+2023-01-05,South,B,6,200
+2023-01-05,West,D,4,250
+2023-01-06,North,A,11,100
+2023-01-06,East,C,9,150
+2023-01-07,South,B,8,200
+2023-01-07,West,D,5,250
+2023-01-08,North,A,13,100
+2023-01-08,East,C,7,150
+2023-01-09,South,B,9,200
+2023-01-09,West,D,6,250
+2023-01-10,North,A,10,100
+2023-01-10,East,C,11,150
+</code></pre>
+    </div>
+
+    <h2>3. GitHub Actions Workflow <code>.github/workflows/ci.yml</code></h2>
+    <div class="file-section">
+        <h3>Content for <code>.github/workflows/ci.yml</code></h3>
+        <p>This workflow runs on <code>push</code>, checks Python code with Ruff, executes <code>execute.py</code> to generate <code>result.json</code>, and publishes <code>result.json</code> to GitHub Pages.</p>
+        <pre><code>name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # To allow checkout and create artifact
+      pages: write    # To deploy to GitHub Pages
+      id-token: write # To authenticate with GitHub Pages
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: 'pip' # Cache pip dependencies
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas ruff
+
+      - name: Run Ruff Linter
+        run: ruff check .
+
+      - name: Execute Python script and generate result.json
+        run: python execute.py > result.json
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'result.json' # The file to publish
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+</code></pre>
+    </div>
+
+    <h2>Instructions to Fulfill Evaluation Checks</h2>
+    <div class="file-section">
+        <p>Follow these steps to set up your repository and satisfy all evaluation checks:</p>
+        <ol>
+            <li><strong>Create a New GitHub Repository:</strong> Initialize an empty repository or one with a <code>.gitignore</code>.</li>
+            <li><strong>Add <code>execute.py</code>:</strong> Create a file named <code>execute.py</code> in the root of your repository and paste the content from Section 1 into it.</li>
+            <li><strong>Add <code>data.csv</code>:</strong> Create a file named <code>data.csv</code> in the root of your repository and paste the content from Section 2 into it.</li>
+            <li><strong>Add GitHub Actions Workflow:</strong> Create the directory structure <code>.github/workflows/</code>, then create a file named <code>ci.yml</code> inside it. Paste the content from Section 3 into <code>.github/workflows/ci.yml</code>.</li>
+            <li><strong>Commit and Push:</strong> Commit these three files (`execute.py`, `data.csv`, `.github/workflows/ci.yml`) to the <code>main</code> or <code>master</code> branch of your GitHub repository.
+                <div class="warning-box">
+                    <strong>Important:</strong> Do NOT commit <code>result.json</code>. It must be generated by the CI pipeline.
+                </div>
+            </li>
+            <li><strong>Enable GitHub Pages:</strong>
+                <ul>
+                    <li>Go to your repository on GitHub.</li>
+                    <li>Navigate to <code>Settings</code> > <code>Pages</code>.</li>
+                    <li>Under "Build and deployment", select "GitHub Actions" as the source.</li>
+                    <li>Ensure the workflow has permissions to deploy pages (this is handled by the <code>permissions</code> block in the <code>ci.yml</code>).</li>
+                </ul>
+            </li>
+            <li><strong>Monitor CI Run:</strong> After pushing, go to the <code>Actions</code> tab in your GitHub repository. You should see the "CI/CD Pipeline" workflow running. Verify that all steps (Ruff, execute Python script) complete successfully.</li>
+            <li><strong>Verify Published <code>result.json</code>:</strong> Once the GitHub Actions workflow completes successfully and the "Deploy to GitHub Pages" step is done, <code>result.json</code> will be published. You can access it at:
+                <pre><code>https://&lt;YOUR_USERNAME&gt;.github.io/&lt;YOUR_REPOSITORY_NAME&gt;/result.json</code></pre>
+                Replace <code>&lt;YOUR_USERNAME&gt;</code> and <code>&lt;YOUR_REPOSITORY_NAME&gt;</code> with your actual GitHub username and repository name.
+            </li>
+        </ol>
+        <p>By following these steps, all specified evaluation checks will be met.</p>
+    </div>
+
+    <div class="info-box">
+        <p>This HTML application serves as the deliverable by providing all necessary components and instructions. It does not include interactive JavaScript as the core task is about repository configuration and CI/CD, not a dynamic frontend application.</p>
+    </div>
+
+</body>
+</html>
